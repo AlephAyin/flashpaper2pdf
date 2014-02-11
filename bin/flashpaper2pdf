@@ -1,0 +1,84 @@
+#!/bin/bash
+
+# --------------------------------------------------
+# Convert flashpaper (swf) file to PDF
+#
+# Author: AlephAyin, 2014
+# Requires:
+# - Xvfb
+# - xdotool
+# - imagemagick
+#
+#    Copyright 2014 - Laurent DENIS
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# --------------------------------------------------
+
+FLASHFILE=$1
+IMGFILE=$2
+STARTPAGE=$3
+ENDPAGE=$4
+
+Xvfb :1 -screen 0 1500x2048x24 > /dev/null &
+xvfb_pid=$!
+
+DISPLAY=:1 gtk-gnash -s 4 $FLASHFILE &
+gnash_pid=$!
+
+echo "Waiting from gtk-gnash to load file"
+sleep 10
+
+WINID=`DISPLAY=:1 xdotool search -name "$FLASHFILE"`
+
+echo "Got window ID ${WINID}"
+
+rm ${IMGFILE}-*.png
+
+for page in $(eval echo {$STARTPAGE..$ENDPAGE})
+do
+	echo -ne "Page $page: "
+	pagekeys=`echo ${page} | sed 's/\(.\)/\1 /'g`
+	DISPLAY=:1 xdotool windowfocus ${WINID}
+	DISPLAY=:1 xdotool key --window ${WINID} Home
+	DISPLAY=:1 xdotool mousemove --sync --window ${WINID} 980 20 
+	DISPLAY=:1 xdotool click --window ${WINID} left
+	DISPLAY=:1 xdotool key --window ${WINID} Left
+	DISPLAY=:1 xdotool key --window ${WINID} Left
+	DISPLAY=:1 xdotool key --window ${WINID} Left
+	DISPLAY=:1 xdotool key --window ${WINID} Delete
+	DISPLAY=:1 xdotool key --window ${WINID} Delete
+	DISPLAY=:1 xdotool key --window ${WINID} Delete
+	DISPLAY=:1 xdotool key --window ${WINID} ${pagekeys}
+	DISPLAY=:1 xdotool key --window ${WINID} Return
+
+	sleep 5
+	echo -ne "extracted "
+
+	pagenr=`echo "000000${page}" | sed 's/.*\([0-9]\{5\}\)$/\1/'`
+	DISPLAY=:1 import -window ${WINID} ${IMGFILE}-${pagenr}.png
+	CROPFORMAT=`identify -format "%[fx:w-32]x%[fx:h-45]+8+36" ${IMGFILE}-${pagenr}.png`
+	convert ${IMGFILE}-${pagenr}.png -crop ${CROPFORMAT} +repage ${IMGFILE}-${pagenr}.png
+	echo "converted"
+done
+
+echo "Closing Gnash and Xvfb"
+
+kill -TERM ${gnash_pid}
+kill -TERM ${xvfb_pid}
+
+echo "Converting images to PDF... can take a long time"
+
+convert ${IMGFILE}-*.png ${IMGFILE}.pdf
+rm ${IMGFILE}-*.png
+
+

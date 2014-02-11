@@ -1,0 +1,52 @@
+Description
+===========
+flashpaper2pdf is a script i wrote to convert some old documents to PDF
+
+Requirements
+============
+Linux/Unix machine with:
+- Xvfb
+- xdotools
+- imagemagick
+- gtk-gnash
+
+How does it work?
+=================
+The script takes a bunch of arguments:
+- swf filename
+- prefix for images and pdf file created
+- first page to convert
+- last page to convert
+
+It does the following things:
+- create a virtual x11 display using Xvfb (size 1500x2048)
+- open the swf document using gtk-gnash with scaling = 4 (fixed)
+- gets the id of the created window
+- for each page in the specified range:
+  - move the mouse to the zone of the page nr
+  - click on it
+  - delete content and enter page nr
+  - takes a snapshot of the gtk-gnash window
+  - crop the image to remove decorations and headers
+- assemble all pages in a pdf file named after the image file prefix
+- delete the temporary files
+
+Example
+=======
+To convert page 1 to 50 of the "this_nice_presentation.swf" to "present.pdf"
+
+  ./flashpaper2pdf this_nice_presentation.swf 1 50 present
+
+
+Known bugs/limitations
+======================
+- Xvfb display is always :1
+- name of the swf must not contain any escaped character (breaks some commands)
+- borders cropping is hard-coded
+- sometimes images gets broken - convert small chunks of document at a time and verify the output
+- assumes position of the page field in gtk-gnash
+- files with the name of the temp images are removed
+
+License
+=======
+Just in case someone would be intersted enough to use this piece of junk: license Apache 2.0
